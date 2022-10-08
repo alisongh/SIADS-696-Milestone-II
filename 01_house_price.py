@@ -283,8 +283,8 @@ class filter_column:
         return df
 
 def main(df):
-    df_start = keep_used_columns.used_columns_df(df, used_columns_list)
-    df_1 = data_format.format_date(df_start, 'Remodeled_Year')
+    df_0 = keep_used_columns.used_columns_df(df, used_columns_list)
+    df_1 = data_format.format_date(df_0, 'Remodeled_Year')
     df_2 = data_format.format_date(df_1, 'Deed_Date')
     df_3 = drop_missing_value.fill_drop_na(df_2, column_dropna, 'PHYSICAL_ZIP_CODE')
     df_4 = drop_missing_value.fill_drop_na(df_3, column_dropna, 'HEATED_AREA')
