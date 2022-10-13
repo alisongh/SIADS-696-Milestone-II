@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-def draw_silhouette(X, k=[8, 9, 10, 11, 12, 13, 14], ax='mort_rate', ay='physical_zip_code_codes', random_state=42):
+def draw_silhouette(X, k=[8, 9, 10, 11, 12, 13, 14], ax='mort_rate', ay='physical_zip_code_codes', random_state=42, sample=20000):
 
     """
     returns a series of silhouette score & silhouette plot with scatter plot layered with cluster centriods for silhouette analysis
@@ -22,6 +22,7 @@ def draw_silhouette(X, k=[8, 9, 10, 11, 12, 13, 14], ax='mort_rate', ay='physica
 
     """
 
+    X = X.sample(frac=sample/len(X.index), replace=False, random_state=random_state)
 
     for n_clusters in k:
         # Create a subplot with 1 row and 2 columns
@@ -44,7 +45,7 @@ def draw_silhouette(X, k=[8, 9, 10, 11, 12, 13, 14], ax='mort_rate', ay='physica
         # The silhouette_score gives the average value for all the samples.
         # This gives a perspective into the density and separation of the formed
         # clusters
-        silhouette_avg = silhouette_score(X, cluster_labels)
+        silhouette_avg = silhouette_score(X, cluster_labels, metric="euclidean")
         print(
             "For n_clusters =",
             n_clusters,
