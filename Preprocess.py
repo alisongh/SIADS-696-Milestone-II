@@ -1,56 +1,84 @@
 # Import Libraries
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-from sklearn.preprocessing import StandardScaler
+import numpy as np
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler, FunctionTransformer, MinMaxScaler
+from sklearn.compose import ColumnTransformer
 
 def preprocessData(file='assets/updated_house_df.csv'):
     """
     take dataframe from manipulation step 
     to complete preprocessing
 
-    returns 3 dataframes:
-        1. Scaled df will all data preprocessed
-        2. Scaled df will post-COVID period data preprocessed
-        3. Scaled df will pre-COVID period data preprocessed
+    returns tuple of 3 items (df, column_trans, idx):
+        1. Preprocessed DF
+        2. Preprecess Pipeline Image
+        3. Index on where to find the columns for each transformer applied to the orig df
     
     """
 
     #read in file
     df = pd.read_csv(file)
 
-    #preprocessing features
-    df['isCovid'] = df['covid_cases'].apply(lambda x: 1 if x > 0 else 0)
+    # a few manipulations
+    df['assessed_value_per_heated_area']=df['assessed_building_value']/df['heated_area']
+    df['covid_year_timeline'] = df['year']-2020
+    df['physical_zip_code'] = df['physical_zip_code'].astype('str')
+    df.drop(columns=['wake_supply_index', 'wake_demand_index'])  # incomplete data
 
-    #todo: should use one hot encoder
-    #todo: log transform
+    # define which handling to which columns
 
-    le = LabelEncoder() 
-    df['physical_city_codes'] = le.fit_transform(df['physical_city'])
-    df['planning_jurisdiction_codes'] = le.fit_transform(df['planning_jurisdiction'])
-    df['physical_zip_code_codes'] = le.fit_transform(df['physical_zip_code'])
+    col_drop = ['deed_date', 'land_sale_price','wake_supply_index', 'wake_demand_index',] # columns to drop
+    col_passthru = ['electric', 'gas', 'water', 'sewer', 'all', 'is_covid','covid_year_timeline'] #columns to keep
+    col_minmax_scale = ['bath_fixtures', 'bath'] #cols to apply min max scale
 
-    # columns to drop
-    drop_cols = [
-        'street_name', 'address', 'street_type', 'deed_date', 'street_number',
-        'physical_city', 'planning_jurisdiction', 'physical_zip_code', # already comverted into numeric with LabelEncoder
-        'wake_supply_index', 'wake_demand_index', # incomplete data
-        'deed_date', # date feature
-        'land_sale_price', 'total_sale_price', # y features
-        ]
+    # if cols are not from the above, we take that categorical (non number) cols for OneHotEncoding
+    df_to_process1 = df.drop(columns = col_drop + col_passthru + col_minmax_scale)
+    col_onehot_cat = df_to_process1.select_dtypes(exclude=np.number).columns.tolist()
 
-    df_drop_cols_full = df.drop(columns=drop_cols)
-    df_drop_cols_isCOVID = df_drop_cols_full[df_drop_cols_full['isCovid'] == 1]
-    df_drop_cols_notCOVID = df_drop_cols_full[df_drop_cols_full['isCovid'] == 0]
-    col_names = df_drop_cols_full.columns.to_list()
+    # if cols are not from the above, they are the remaining numeric cols, we now check for skewness
+    df_to_process2 = df_to_process1.drop(columns = col_onehot_cat).columns.tolist()
 
-    # scale data to unit variance
-    scaler = StandardScaler()
+    skew_check = df[df_to_process2].skew()
 
-    df_scaled_full = pd.DataFrame(scaler.fit_transform(df_drop_cols_full), columns=col_names)
-    df_scaled_isCOVID = pd.DataFrame(scaler.fit_transform(df_drop_cols_isCOVID), columns=col_names)
-    df_scaled_notCOVID = pd.DataFrame(scaler.fit_transform(df_drop_cols_notCOVID), columns=col_names)
+    col_log_scale = skew_check.loc[skew_check >= 1].index.to_list() # if skewness > 1 (right skewwed, then we first log then std scale)
+    col_scale = skew_check.loc[skew_check < 1].index.to_list() # if not skew to the right, then we only apply std scale
+    print('log scaled', col_log_scale)
+    print('std scales', col_scale)
 
-    print(df_drop_cols_full.columns.to_list())
+    # define the function for log and scale the column - for next step    
+    log_scale_transformer = make_pipeline(
+        FunctionTransformer(func=np.log1p, feature_names_out='one-to-one'), 
+        StandardScaler()
+        )
 
-    return df_scaled_full, df_scaled_isCOVID, df_scaled_notCOVID
+    # transformer object - transform the columns based on above define strategies
+    column_trans = ColumnTransformer(
+    [
+        ("onehot", OneHotEncoder(), col_onehot_cat),
+        ("log_scaled", log_scale_transformer, col_log_scale),
+        ('mm_scaled', MinMaxScaler(), col_minmax_scale),
+        ('std_scale', StandardScaler(), col_scale),
+        ("passthru", "passthrough", col_passthru),
+    ],
+    remainder="drop",
+    verbose_feature_names_out=True
+    )
+
+    # preprocess all features from original df 
+    X = column_trans.fit_transform(df)
+
+    # new featurenames 
+    colnames = column_trans.get_feature_names_out().tolist()
+
+    # preprocessed dataframe
+    df = pd.DataFrame(X, columns = colnames)
+    
+    # index to know how to slice and differentiate the columns
+    idx = column_trans.output_indices_
+
+    return df, column_trans, idx
+
+# https://www.analyticsvidhya.com/blog/2021/05/understanding-column-transformer-and-machine-learning-pipelines/
 
