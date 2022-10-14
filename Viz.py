@@ -1,12 +1,14 @@
 import matplotlib.cm as cm
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples, silhouette_score
+from sklearn.pipeline import make_pipeline
+from time import time
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
-def draw_silhouette(X, k=[8, 9, 10, 11, 12, 13, 14], ax='mort_rate', ay='physical_zip_code_codes', random_state=42, sample=20000):
+def draw_silhouette(X, k=[2,3], ax='mort_rate', ay='physical_zip_code_codes', random_state=42, sample=20000):
 
     """
     returns a series of silhouette score & silhouette plot with scatter plot layered with cluster centriods for silhouette analysis
@@ -187,3 +189,46 @@ def draw_cluster_scatter(X, k, random_state=42):
         margin={"l": 0, "r": 0, "t": 25, "b": 0},
     )
     fig.write_html("kmeans_cluster_scatter.html")
+
+
+def plot_silhouette(X, kmeans=KMeans(init="k-means++", random_state=42), k_start=2, k_end=20, random_state=42):
+    x = [i for i in range(k_start, k_end+1)]
+    fit_time = []
+    inertia = []
+    silhouette = []
+
+    for i in range(k_start, k_end+1):
+        name = str(i)+' clusters'
+        t0 = time()
+        kmeans = KMeans(n_clusters=i, random_state=random_state)
+        estimator = make_pipeline(kmeans).fit(X)
+        fit_time.append(time() - t0)
+        inertia.append(estimator[-1].inertia_)
+
+        this_silhouette = silhouette_score(
+                X,
+                estimator[-1].labels_,
+                metric="euclidean",
+                sample_size=20000,
+                random_state=random_state
+            )
+        silhouette.append(this_silhouette)
+
+    fig, (ax_top, ax_btm) = plt.subplots(2, 1, figsize = (8, 8))
+
+    ax2 = ax_top.twinx()
+    ax_top.plot(x, silhouette, color = 'g')
+    ax2.plot(x, inertia, color = 'b')
+
+    # giving labels to the axises
+    ax_top.set_xlabel('Clusters')
+    ax_top.set_ylabel('Silhouette Score', color = 'g')
+    ax2.set_ylabel('Inertia', color = 'b')
+
+    ax_btm.plot(x, fit_time, linestyle = 'dotted', color = 'r')
+    ax_btm.set_ylabel('Fitting Time', color = 'r')
+    ax_btm.set_xlabel('Clusters')
+    plt.title("Silhouette Score, Inertia, and Fitting Time for "+str(k_start)+" to "+str(k_end)+" Clusters")
+    plt.tight_layout()
+
+    plt.show()

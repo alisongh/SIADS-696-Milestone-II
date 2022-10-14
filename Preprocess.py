@@ -6,7 +6,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler, FunctionTransformer, MinMaxScaler
 from sklearn.compose import ColumnTransformer
 
-def preprocessData(file='assets/updated_house_df.csv'):
+def preprocessData(file='assets/updated_house_df.csv', data_from = 2000):
     """
     take dataframe from manipulation step 
     to complete preprocessing
@@ -20,6 +20,7 @@ def preprocessData(file='assets/updated_house_df.csv'):
 
     #read in file
     df = pd.read_csv(file)
+    df = df[df['year'] >= data_from]
 
     # a few manipulations
     df['assessed_value_per_heated_area']=df['assessed_building_value']/df['heated_area']
@@ -30,7 +31,7 @@ def preprocessData(file='assets/updated_house_df.csv'):
     # define which handling to which columns
 
     col_drop = ['deed_date', 'land_sale_price','wake_supply_index', 'wake_demand_index',] # columns to drop
-    col_passthru = ['electric', 'gas', 'water', 'sewer', 'all', 'is_covid','covid_year_timeline'] #columns to keep
+    col_passthru = ['electric', 'gas', 'water', 'sewer', 'all', 'is_covid', 'covid_year_timeline'] #columns to keep
     col_minmax_scale = ['bath_fixtures', 'bath'] #cols to apply min max scale
 
     # if cols are not from the above, we take that categorical (non number) cols for OneHotEncoding
