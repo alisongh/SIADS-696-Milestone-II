@@ -23,14 +23,13 @@ def preprocessData(file='assets/updated_house_df.csv', data_from = 2000):
     df = df[df['year'] >= data_from]
 
     # a few manipulations
-    df['assessed_value_per_heated_area']=df['assessed_building_value']/df['heated_area']
-    df['covid_year_timeline'] = df['year']-2020
     df['physical_zip_code'] = df['physical_zip_code'].astype('str')
-    df.drop(columns=['wake_supply_index', 'wake_demand_index'])  # incomplete data
+    if data_from < 2017: # don't include wake supply and demand date if year is before 2017
+        df = df.drop(columns=['wake_supply_index', 'wake_demand_index'])  # incomplete data
 
     # define which handling to which columns
 
-    col_drop = ['deed_date', 'land_sale_price','wake_supply_index', 'wake_demand_index',] # columns to drop
+    col_drop = ['deed_date', 'land_sale_price'] # columns to drop
     col_passthru = ['electric', 'gas', 'water', 'sewer', 'all', 'is_covid', 'covid_year_timeline'] #columns to keep
     col_minmax_scale = ['bath_fixtures', 'bath'] #cols to apply min max scale
 
@@ -45,8 +44,6 @@ def preprocessData(file='assets/updated_house_df.csv', data_from = 2000):
 
     col_log_scale = skew_check.loc[skew_check >= 1].index.to_list() # if skewness > 1 (right skewwed, then we first log then std scale)
     col_scale = skew_check.loc[skew_check < 1].index.to_list() # if not skew to the right, then we only apply std scale
-    print('log scaled', col_log_scale)
-    print('std scales', col_scale)
 
     # define the function for log and scale the column - for next step    
     log_scale_transformer = make_pipeline(
