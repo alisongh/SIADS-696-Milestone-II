@@ -15,6 +15,7 @@ def preprocessData(file='assets/updated_house_df.csv', data_from = 2000):
         1. Preprocessed DF
         2. Preprecess Pipeline Image
         3. Index on where to find the columns for each transformer applied to the orig df
+        4. Original df
     
     """
 
@@ -71,12 +72,12 @@ def preprocessData(file='assets/updated_house_df.csv', data_from = 2000):
     colnames = column_trans.get_feature_names_out().tolist()
 
     # preprocessed dataframe
-    df = pd.DataFrame(X, columns = colnames)
+    df_transformed = pd.DataFrame(X, columns = colnames)
     
     # index to know how to slice and differentiate the columns
     idx = column_trans.output_indices_
 
-    return df, column_trans, idx
+    return df_transformed, column_trans, idx, df
 
 # https://www.analyticsvidhya.com/blog/2021/05/understanding-column-transformer-and-machine-learning-pipelines/
 
