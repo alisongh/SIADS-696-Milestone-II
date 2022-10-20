@@ -1,6 +1,6 @@
 import matplotlib.cm as cm
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_samples, silhouette_score
+from sklearn.metrics import silhouette_samples, silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from sklearn.pipeline import make_pipeline
 from time import time
 import matplotlib.pyplot as plt
@@ -196,25 +196,37 @@ def plot_silhouette(X, kmeans=KMeans(init="k-means++", random_state=42), k_start
     fit_time = []
     inertia = []
     silhouette = []
+    DB = [] #davies-bouldin index
+    CH = [] #calinski-harabasz index
 
     for i in range(k_start, k_end+1):
         name = str(i)+' clusters'
         t0 = time()
         kmeans = KMeans(n_clusters=i, random_state=random_state)
-        estimator = make_pipeline(kmeans).fit(X)
+        #estimator = make_pipeline(kmeans).fit(X)
+        estimator = kmeans.fit(X)
         fit_time.append(time() - t0)
-        inertia.append(estimator[-1].inertia_)
+        inertia.append(estimator.inertia_)
 
         this_silhouette = silhouette_score(
                 X,
-                estimator[-1].labels_,
+                estimator.labels_,
                 metric="euclidean",
                 sample_size=20000,
                 random_state=random_state
             )
         silhouette.append(this_silhouette)
 
-    fig, (ax_top, ax_btm) = plt.subplots(2, 1, figsize = (8, 8))
+        this_DB = davies_bouldin_score(X, estimator.labels_)
+        DB.append(this_DB)
+
+        this_CH = calinski_harabasz_score(X, estimator.labels_)
+        CH.append(this_CH)
+
+
+    fig, (ax_top, ax_mid, ax_btm) = plt.subplots(3, 1, figsize = (8, 8))
+
+    # ax_top
 
     ax2 = ax_top.twinx()
     ax_top.plot(x, silhouette, color = 'g')
@@ -225,10 +237,25 @@ def plot_silhouette(X, kmeans=KMeans(init="k-means++", random_state=42), k_start
     ax_top.set_ylabel('Silhouette Score', color = 'g')
     ax2.set_ylabel('Inertia', color = 'b')
 
+    # ax_mid
+
+    ax3 = ax_mid.twinx()
+    ax_mid.plot(x, DB, color = 'c')
+    ax3.plot(x, CH, color = 'm')
+
+    # giving labels to the axises
+    ax_mid.set_xlabel('Clusters')
+    ax_mid.set_ylabel('Davies-Bouldin Index', color = 'c')
+    ax3.set_ylabel('Calinski-Harabasz Index', color = 'm')
+
+    # ax_btm
+
     ax_btm.plot(x, fit_time, linestyle = 'dotted', color = 'r')
     ax_btm.set_ylabel('Fitting Time', color = 'r')
     ax_btm.set_xlabel('Clusters')
-    plt.title("Silhouette Score, Inertia, and Fitting Time for "+str(k_start)+" to "+str(k_end)+" Clusters")
+    
+    plt.xticks(range(k_start,k_end+1))
+    plt.title("Cluster Evaluation and Fitting Time for "+str(k_start)+" to "+str(k_end)+" Clusters")
     plt.tight_layout()
 
     plt.show()
