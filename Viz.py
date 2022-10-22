@@ -1,12 +1,14 @@
 import matplotlib.cm as cm
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_samples, silhouette_score, davies_bouldin_score, calinski_harabasz_score
-from sklearn.pipeline import make_pipeline
 from time import time
+import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from scipy.cluster.hierarchy import dendrogram
+
 
 def draw_silhouette(X, k=[2,3], ax='mort_rate', ay='physical_zip_code_codes', random_state=42, sample=20000):
 
@@ -224,7 +226,7 @@ def plot_silhouette(X, kmeans=KMeans(init="k-means++", random_state=42), k_start
         CH.append(this_CH)
 
 
-    fig, (ax_top, ax_mid, ax_btm) = plt.subplots(3, 1, figsize = (8, 8))
+    fig, (ax_top, ax_mid, ax_btm) = plt.subplots(3, 1, figsize = (7, 8))
 
     # ax_top
 
@@ -236,6 +238,7 @@ def plot_silhouette(X, kmeans=KMeans(init="k-means++", random_state=42), k_start
     ax_top.set_xlabel('Clusters')
     ax_top.set_ylabel('Silhouette Score', color = 'g')
     ax2.set_ylabel('Inertia', color = 'b')
+    ax_top.xaxis.set_ticks(range(k_start,k_end+1))
 
     # ax_mid
 
@@ -247,15 +250,119 @@ def plot_silhouette(X, kmeans=KMeans(init="k-means++", random_state=42), k_start
     ax_mid.set_xlabel('Clusters')
     ax_mid.set_ylabel('Davies-Bouldin Index', color = 'c')
     ax3.set_ylabel('Calinski-Harabasz Index', color = 'm')
+    ax_mid.xaxis.set_ticks(range(k_start,k_end+1))
 
     # ax_btm
 
     ax_btm.plot(x, fit_time, linestyle = 'dotted', color = 'r')
     ax_btm.set_ylabel('Fitting Time', color = 'r')
     ax_btm.set_xlabel('Clusters')
+    ax_btm.xaxis.set_ticks(range(k_start,k_end+1))
     
-    plt.xticks(range(k_start,k_end+1))
-    plt.title("Cluster Evaluation and Fitting Time for "+str(k_start)+" to "+str(k_end)+" Clusters")
-    plt.tight_layout()
+    fig.suptitle("Cluster Evaluation and Fitting Time for "+str(k_start)+" to "+str(k_end)+" Clusters", y=1)
+    fig.tight_layout(h_pad=2, w_pad=2)
 
+    fig.show()
+
+
+def make_PCA_screeplot(pca):
+
+    """
+    input pca fitted object 
+    
+    returns PCA Scree Plot
+    
+    """
+
+    colors = ["green" if i >= 1 else "blue" for i in pca.explained_variance_]
+
+    explained = pca.explained_variance_ratio_
+
+    plt.figure(figsize = (10,7))
+    plt.plot(range(1, len(explained)+1), explained.cumsum(), marker='o', linestyle = '--')
+    plt.bar(range(1, len(explained)+1), explained, color = colors),
+    plt.text(15, 0.6, 'green bars: eignevalue >= 1\n blue bars: eigenvalue < 1', fontsize = 14)
+    plt.title('Explained Variance by Components')
+    plt.xlabel('Number of Components')
+    plt.ylabel('Cumulative Explained Variance')
     plt.show()
+
+def make_loadings_df(pca_n, feature_names):
+
+    """
+    input pcs model and feature names as np array
+
+    returns dataframe of feature loadings by PC
+    
+    """
+
+    pca_n_loadings = pca_n.components_
+    names_pc = ['PC'+str(i) for i in range(1, pca_n.n_components_+1)]
+
+    loadings_df = pd.DataFrame.from_dict(dict(zip(names_pc, pca_n_loadings)))
+    loadings_df['variable'] = feature_names
+    loadings_df = loadings_df.set_index('variable').round(4).sort_values(by=names_pc, ascending=False)
+
+    return loadings_df
+
+def top_PC_loadings(pca_n, feature_names, top_n=10):
+
+    """
+        #top features and loadings for PC
+
+        input pca instance and # of top features to show
+    
+    """
+
+    loadings_df = make_loadings_df(pca_n, feature_names)
+
+    pc_df = pd.DataFrame()
+
+    for i, col in enumerate(loadings_df.columns):
+
+        top10 = loadings_df[col].sort_values(ascending=False)[:top_n]
+        pc_df = pd.concat([pc_df, top10.reset_index().rename(
+            columns={
+                'variable':col+' Top Feature', 
+                col: col+' Loadings (ratio='+str(round(pca_n.explained_variance_ratio_[i],3))+')'
+                })], axis=1)
+
+    fig = go.Figure(data=[go.Table(
+        columnwidth=[25, 10]*int(len(pc_df.columns)/2),
+        header=dict(values=list(pc_df.columns),
+                    fill_color='paleturquoise',
+                    align='center',
+                    font = dict(size=9)
+                    ),
+        cells=dict(values=pc_df.transpose().values.tolist(),
+                fill_color='lavender',
+                align=['left', 'center']*int(len(pc_df.columns)/2),
+                font = dict(size=9)
+                ))
+    ])
+
+    fig.show()
+    return pc_df
+
+
+def plot_dendrogram(model, **kwargs):
+    # Create linkage matrix and then plot the dendrogram
+
+    # create the counts of samples under each node
+    counts = np.zeros(model.children_.shape[0])
+    n_samples = len(model.labels_)
+    for i, merge in enumerate(model.children_):
+        current_count = 0
+        for child_idx in merge:
+            if child_idx < n_samples:
+                current_count += 1  # leaf node
+            else:
+                current_count += counts[child_idx - n_samples]
+        counts[i] = current_count
+
+    linkage_matrix = np.column_stack(
+        [model.children_, model.distances_, counts]
+    ).astype(float)
+
+    # Plot the corresponding dendrogram
+    dendrogram(linkage_matrix, **kwargs)
