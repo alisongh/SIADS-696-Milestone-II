@@ -1,7 +1,7 @@
 
 # Post-COVID Single Family Home Value Prediction in Wake County, NC
 
-This project generates multiple machine learning models to determine and analyze the impacts of COVID on the residential real estate market and to predict the value of single-family homes in Wake County, NC. This paper describes a deeper understanding of the correlation relationships among the housing market, house utilities, COVID features, and macroeconomic indicators.
+This project generates four machine learning models, two supervised learning models, and two unsupervised learning models to determine the impacts of COVID on the residential real estate market and to predict the value of single-family homes in Wake County, North Carolina (NC). This paper describes a deeper understanding of the relationships among the housing market, house utilities, COVID features, and macroeconomic indicators. 
 
 
 ## Authors
