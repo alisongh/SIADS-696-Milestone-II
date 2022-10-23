@@ -16,7 +16,7 @@ This project generates multiple machine learning models to determine and analyze
 [Project Report](https://cloud.datapane.com/reports/VkGLe2A/post-covid-single-family-home-value-prediction-in-wake-county-nc/)
 ## Screenshots
 
-![App Screenshot](https://drive.google.com/file/d/14-KQIDlkCa7UmqS1RqO7OvgQoOTqmV_q/view?usp=sharing)
+![App Screenshot](profile.png)
 
 
 ## Roadmap
